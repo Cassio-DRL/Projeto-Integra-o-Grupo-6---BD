@@ -54,6 +54,7 @@ Os arquivos originais não são versionados neste repositório devido ao tamanho
 ## 4. Organização do repositório
 
 ```text
+
 .
 ├── analises/
 │   ├── 01a_ead_x_presencial_regiao.sql
@@ -63,20 +64,27 @@ Os arquivos originais não são versionados neste repositório devido ao tamanho
 ├── docs/
 │   ├── figuras/
 │   ├── prints/
+│   │   └── qa/
 │   └── relatórios/
 │       ├── etl.md
-│       └── perfilamento.md
+│       ├── perfilamento.md
+│       └── qa.md
 ├── notebooks/
 │   ├── 00_exploracao.ipynb
 │   ├── 01_ETL.ipynb
+│   ├── 02_ELT.ipynb
 │   └── 03_analises.ipynb
+├── qa/
+│   ├── 01_validacao_etl.sql
+│   └── 02_validacao_elt.sql
 ├── .gitignore
 ├── LICENSE
 ├── README.md
 └── requirements.txt
+
 ```
 
-A estrutura acima corresponde à branch `main` consultada durante a documentação. O notebook ELT encontra-se na branch de desenvolvimento `ELT` e deve ser integrado posteriormente.
+A estrutura acima corresponde à branch `main` consultada durante a documentação.
 
 Os diretórios `docs/figuras/` e `docs/prints/` armazenam gráficos e evidências das etapas de execução.
 
@@ -201,26 +209,53 @@ O notebook recria o schema `etl` durante a carga. Uma nova execução pode subst
 
 A documentação específica está disponível em `docs/relatórios/etl.md`.
 
-## 8. Pipeline ELT
+## 8. Execução do pipeline ELT
 
-O segundo pipeline utiliza a abordagem ELT, na qual os dados são carregados inicialmente em tabelas brutas e posteriormente transformados dentro do PostgreSQL.
+O pipeline ELT está implementado no notebook `notebooks/02_ELT.ipynb`.
 
-A implementação em desenvolvimento encontra-se na branch `ELT`, no notebook:
+Diferentemente do ETL, no qual os dados são predominantemente transformados com pandas antes da carga, o ELT realiza as transformações dentro do PostgreSQL.
 
-`notebooks/ELT/ELT_Censo_Educacao_Superior_Windows.ipynb`
+### 8.1. Organização das camadas
 
-O fluxo utiliza os schemas:
+O pipeline utiliza os seguintes schemas:
 
-- `raw`: armazenamento inicial dos dados;
-- `ref`: tabelas auxiliares de referência e decodificação;
-- `stg`: padronização e transformação intermediária;
-- `dw`: dimensões e tabela fato resultantes.
+| Schema | Responsabilidade |
+|---|---|
+| `raw` | Recebimento dos dados brutos dos CSVs |
+| `ref` | Dicionários e tabelas auxiliares |
+| `stg` | Padronização, limpeza e integração intermediária |
+| `dw` | Data Warehouse final em esquema estrela |
 
-Na versão consultada, esse notebook utiliza o banco PostgreSQL `censo`, diferentemente do ETL, que utiliza `censo_superior`.
+### 8.2. Configuração
 
-Antes da comparação automática entre os pipelines, é necessário alinhar a configuração de conexão e as regras de transformação.
+O notebook utiliza o banco `censo_superior` no PostgreSQL local.
 
-O ELT também recria schemas durante a execução, portanto deve ser executado em ambiente de teste apropriado.
+Os arquivos de origem devem estar organizados em `data/raw/<ano>/`, conforme a seção 6.3.
+
+Para executar:
+
+1. Abra `notebooks/02_ELT.ipynb` no VS Code ou em um ambiente Jupyter compatível.
+2. Selecione o ambiente Python com as dependências instaladas.
+3. Confirme os parâmetros de conexão e a localização dos CSVs.
+4. Execute as células na ordem apresentada.
+5. Verifique as conferências de integridade e os totais produzidos.
+6. Execute a seção de comparação ETL × ELT após ambos os pipelines estarem carregados.
+
+**Atenção:** o notebook recria os schemas `raw`, `ref`, `stg` e `dw` durante sua execução. Recomenda-se utilizar um ambiente de teste e não armazenar senhas no código versionado.
+
+### 8.3. Resultado validado
+
+Após a execução completa, o schema `dw` apresentou:
+
+- 1.964.978 registros na tabela fato;
+- seis dimensões;
+- correspondência integral dos totais anuais com os valores de referência;
+- aprovação dos quatro testes independentes de QA;
+- equivalência das sete tabelas com o schema `etl`.
+
+A comparação utilizou `EXCEPT ALL` nos dois sentidos e não encontrou registros divergentes entre as tabelas finais.
+
+O relatório de validação completo está disponível em [Relatório de QA](docs/relatórios/qa.md).
 
 ## 9. Análises realizadas
 
@@ -260,30 +295,45 @@ As consultas devem ser executadas após a carga do Data Warehouse correspondente
 
 Os resultados são processados com pandas e visualizados com Matplotlib. As figuras geradas são armazenadas em `docs/figuras/`.
 
-## 10. Conferências e qualidade dos dados
+## 10. Controle de qualidade e validação
 
-A qualidade da integração é avaliada por meio de verificações como:
+A qualidade dos dados foi avaliada individualmente nos dois pipelines e por meio de uma comparação entre os Data Warehouses resultantes.
 
-- Preservação da quantidade de registros de origem;
-- Comparação dos totais por ano;
-- Verificação de cursos distintos;
-- Conferência das somas de ingressantes e matrículas;
-- Unicidade das chaves naturais;
-- Integridade referencial entre fato e dimensões;
-- Consistência das regras de transformação;
-- Comparação dos resultados produzidos por ETL e ELT.
+### 10.1. Testes independentes
 
-### Valores de referência
+Foram implementados dois scripts SQL:
 
-| Ano | Linhas | Ingressantes | Matrículas |
-|---|---:|---:|---:|
-| 2022 | 573.019 | 4.756.957 | 9.444.116 |
-| 2023 | 671.610 | 4.994.192 | 9.977.217 |
-| 2024 | 720.349 | 5.010.613 | 10.227.266 |
+- [QA do ETL](qa/01_validacao_etl.sql)
+- [QA do ELT](qa/02_validacao_elt.sql)
 
-Esses valores foram obtidos no perfilamento dos microdados e servem como referência para as conferências.
+Cada script contém quatro testes:
 
-A equivalência completa entre ETL e ELT exige também comparar os registros e atributos resultantes, e não apenas as contagens e somas agregadas.
+1. Conferência dos totais anuais;
+2. Integridade referencial entre fato e dimensões;
+3. Unicidade da chave natural da tabela fato;
+4. Cardinalidade das tabelas do esquema estrela.
+
+**Resultado: os oito testes independentes foram aprovados.**
+
+### 10.2. Equivalência entre os pipelines
+
+Os resultados finais dos schemas `etl` e `dw` foram comparados com `EXCEPT ALL`, em ambos os sentidos, para verificar a existência de registros exclusivos de cada implementação.
+
+| Indicador | Resultado |
+|---|---|
+| Tabelas comparadas | 7 |
+| Tabelas idênticas | 7 |
+| Registros exclusivos do ETL | 0 |
+| Registros exclusivos do ELT | 0 |
+| Situação | APROVADO |
+
+A equivalência foi confirmada para as bases e execuções verificadas.
+
+### 10.3. Evidências
+
+O [Relatório de Controle de Qualidade](docs/relatórios/qa.md) documenta os procedimentos, resultados, limitações e evidências.
+
+As saídas textuais e capturas de tela encontram-se em `docs/prints/qa/`.
 
 ## 11. Limitações e cuidados
 

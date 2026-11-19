@@ -1,0 +1,28 @@
+ ano  | linhas_esperadas | linhas_obtidas | cursos_esperados | cursos_obtidos | ing_esperados | ing_obtidos | mat_esperadas | mat_obtidas |  status  
+------+------------------+----------------+------------------+----------------+---------------+-------------+---------------+-------------+----------
+ 2022 |           573019 |         573019 |            45296 |          45296 |       4756957 |     4756957 |       9444116 |     9444116 | APROVADO
+ 2023 |           671610 |         671610 |            46317 |          46317 |       4994192 |     4994192 |       9977217 |     9977217 | APROVADO
+ 2024 |           720349 |         720349 |            46150 |          46150 |       5010613 |     5010613 |      10227266 |    10227266 | APROVADO
+(3 linhas)
+
+ total_fato | erros_tempo | erros_curso | erros_ies | erros_area_cine | erros_localidade | erros_dimensao 
+------------+-------------+-------------+-----------+-----------------+------------------+----------------
+    1964978 |           0 |           0 |         0 |               0 |                0 |              0
+(1 linha)
+
+ grupos_duplicados | linhas_excedentes |  status  
+-------------------+-------------------+----------
+                 0 |                 0 | APROVADO
+(1 linha)
+
+      tabela       | esperado | obtido  |  status  
+-------------------+----------+---------+----------
+ dim_area_cine     |      372 |     372 | APROVADO
+ dim_curso         |   137763 |  137763 | APROVADO
+ dim_dimensao      |        4 |       4 | APROVADO
+ dim_ies           |     7736 |    7736 | APROVADO
+ dim_localidade    |     3681 |    3681 | APROVADO
+ dim_tempo         |        3 |       3 | APROVADO
+ fato_oferta_curso |  1964978 | 1964978 | APROVADO
+(7 linhas)
+
